@@ -1,0 +1,1028 @@
+import { useState, useEffect } from "react";
+import {
+  Table,
+  Button,
+  Modal,
+  Popconfirm,
+  Input,
+  InputNumber,
+  Space,
+  message,
+  Tag,
+  AutoComplete,
+  Divider,
+  Descriptions,
+} from "antd";
+import {
+  PlusOutlined,
+  EditOutlined,
+  DeleteOutlined,
+  PrinterOutlined,
+  FileTextOutlined,
+  DollarOutlined,
+} from "@ant-design/icons";
+import { supabase } from "../supabaseClient";
+
+export default function Suppliers() {
+  const [invoices, setInvoices] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [detailsModalOpen, setDetailsModalOpen] = useState(false);
+  const [paymentModalOpen, setPaymentModalOpen] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [cartItems, setCartItems] = useState([]);
+  const [supplierName, setSupplierName] = useState("");
+  const [supplierPhone, setSupplierPhone] = useState("");
+  const [paidAmount, setPaidAmount] = useState(0);
+  const [paymentAmount, setPaymentAmount] = useState(0);
+  const [searchProduct, setSearchProduct] = useState("");
+  const [productOptions, setProductOptions] = useState([]);
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [editingInvoice, setEditingInvoice] = useState(null);
+  const [editSupplierName, setEditSupplierName] = useState("");
+  const [editSupplierPhone, setEditSupplierPhone] = useState("");
+  const [editCartItems, setEditCartItems] = useState([]);
+  const [editSearchProduct, setEditSearchProduct] = useState("");
+  const [editProductOptions, setEditProductOptions] = useState([]);
+
+  useEffect(() => {
+    fetchInvoices();
+    fetchProducts();
+  }, []);
+
+  async function fetchInvoices() {
+    setLoading(true);
+    const { data, error } = await supabase
+      .from("invoices")
+      .select(`*, invoice_items(*), payments(*), suppliers(name, phone)`)
+      .eq("type", "supplier")
+      .eq("status", "active")
+      .order("created_at", { ascending: false });
+    if (error) message.error("حصل خطأ");
+    else setInvoices(data);
+    setLoading(false);
+  }
+
+  async function fetchProducts() {
+    const { data } = await supabase.from("products").select("*").order("name");
+    setProducts(data || []);
+  }
+
+  function handleProductSearch(value) {
+    setSearchProduct(value);
+    setProductOptions(
+      products
+        .filter((p) => p.name.includes(value) || p.size.includes(value))
+        .map((p) => ({
+          value: p.id,
+          label: `${p.name} - ${p.size}`,
+          product: p,
+        })),
+    );
+  }
+
+  function handleProductSelect(value, option) {
+    const product = option.product;
+    const exists = cartItems.find((i) => i.product_id === product.id);
+    if (exists) {
+      setCartItems(
+        cartItems.map((i) =>
+          i.product_id === product.id
+            ? {
+                ...i,
+                quantity: i.quantity + 1,
+                total: (i.quantity + 1) * i.cost_price,
+              }
+            : i,
+        ),
+      );
+    } else {
+      setCartItems([
+        ...cartItems,
+        {
+          product_id: product.id,
+          product_name: product.name,
+          product_size: product.size,
+          cost_price: product.cost_price,
+          selling_price: product.selling_price,
+          quantity: 1,
+          total: product.cost_price,
+        },
+      ]);
+    }
+    setSearchProduct("");
+  }
+
+  function updateCostPrice(product_id, newPrice) {
+    setCartItems(
+      cartItems.map((i) =>
+        i.product_id === product_id
+          ? { ...i, cost_price: newPrice, total: i.quantity * newPrice }
+          : i,
+      ),
+    );
+  }
+
+  function updateQuantity(product_id, newQty) {
+    setCartItems(
+      cartItems.map((i) =>
+        i.product_id === product_id
+          ? { ...i, quantity: newQty, total: newQty * i.cost_price }
+          : i,
+      ),
+    );
+  }
+
+  function removeItem(product_id) {
+    setCartItems(cartItems.filter((i) => i.product_id !== product_id));
+  }
+
+  function openEditInvoice(invoice) {
+    setEditingInvoice(invoice);
+    setEditSupplierName(invoice.suppliers?.name || "");
+    setEditSupplierPhone(invoice.suppliers?.phone || "");
+
+    const mappedItems = (invoice.invoice_items || []).map((item) => {
+      const product = products.find((p) => p.id === item.product_id);
+      const currentStock = product?.quantity || 0;
+      return {
+        product_id: item.product_id,
+        product_name: item.product_name,
+        product_size: item.product_size,
+        cost_price: item.unit_price || item.cost_price || 0,
+        quantity: item.quantity,
+        total: item.quantity * (item.unit_price || item.cost_price || 0),
+        min_quantity: 1,
+        max_adjust_down: currentStock,
+      };
+    });
+    setEditCartItems(mappedItems);
+    setEditSearchProduct("");
+    setEditProductOptions([]);
+    setEditModalOpen(true);
+  }
+
+  function handleEditProductSearch(value) {
+    setEditSearchProduct(value);
+    setEditProductOptions(
+      products
+        .filter((p) => p.name.includes(value) || p.size.includes(value))
+        .map((p) => ({
+          value: p.id,
+          label: `${p.name} - ${p.size}`,
+          product: p,
+        })),
+    );
+  }
+
+  function handleEditProductSelect(value, option) {
+    const product = option.product;
+    const exists = editCartItems.find((i) => i.product_id === product.id);
+    if (exists) {
+      setEditCartItems(
+        editCartItems.map((i) =>
+          i.product_id === product.id
+            ? {
+                ...i,
+                quantity: i.quantity + 1,
+                total: (i.quantity + 1) * i.cost_price,
+              }
+            : i,
+        ),
+      );
+    } else {
+      setEditCartItems([
+        ...editCartItems,
+        {
+          product_id: product.id,
+          product_name: product.name,
+          product_size: product.size,
+          cost_price: product.cost_price,
+          quantity: 1,
+          total: product.cost_price,
+          min_quantity: 1,
+          max_adjust_down: product.quantity,
+        },
+      ]);
+    }
+    setEditSearchProduct("");
+  }
+
+  function updateEditCostPrice(product_id, newPrice) {
+    setEditCartItems(
+      editCartItems.map((i) =>
+        i.product_id === product_id
+          ? { ...i, cost_price: newPrice, total: i.quantity * newPrice }
+          : i,
+      ),
+    );
+  }
+
+  function updateEditQuantity(product_id, newQty) {
+    setEditCartItems(
+      editCartItems.map((i) =>
+        i.product_id === product_id
+          ? { ...i, quantity: newQty, total: newQty * i.cost_price }
+          : i,
+      ),
+    );
+  }
+
+  function removeEditItem(product_id) {
+    setEditCartItems(editCartItems.filter((i) => i.product_id !== product_id));
+  }
+
+  const totalAmount = cartItems.reduce((sum, i) => sum + i.total, 0);
+  const editTotalAmount = editCartItems.reduce((sum, i) => sum + i.total, 0);
+
+  async function handleSaveInvoice() {
+    if (!supplierName.trim()) return message.error("ادخل اسم المورد");
+    if (cartItems.length === 0) return message.error("أضف منتج واحد على الأقل");
+
+    // جلب أو إنشاء المورد
+    let supplierId = null;
+    const { data: existing } = await supabase
+      .from("suppliers")
+      .select("id")
+      .eq("phone", supplierPhone)
+      .single();
+
+    if (existing) {
+      supplierId = existing.id;
+    } else {
+      const { data: newSupplier } = await supabase
+        .from("suppliers")
+        .insert({ name: supplierName, phone: supplierPhone })
+        .select("id")
+        .single();
+      supplierId = newSupplier?.id;
+    }
+
+    // إنشاء الفاتورة
+    const { data: invoice, error } = await supabase
+      .from("invoices")
+      .insert({
+        type: "supplier",
+        supplier_id: supplierId,
+        total_amount: totalAmount,
+        paid_amount: paidAmount,
+      })
+      .select()
+      .single();
+
+    if (error) return message.error("حصل خطأ في حفظ الفاتورة");
+
+    // تفاصيل الفاتورة
+    await supabase.from("invoice_items").insert(
+      cartItems.map((i) => ({
+        invoice_id: invoice.id,
+        product_id: i.product_id,
+        product_name: i.product_name,
+        product_size: i.product_size,
+        quantity: i.quantity,
+        unit_price: i.cost_price,
+        cost_price: i.cost_price,
+      })),
+    );
+
+    // تسجيل الدفعة الأولى
+    if (paidAmount > 0) {
+      await supabase.from("payments").insert({
+        invoice_id: invoice.id,
+        amount: paidAmount,
+        notes: "دفعة أولى",
+      });
+    }
+
+    // تحديث ما علينا للمورد
+    const remaining = totalAmount - paidAmount;
+    if (remaining > 0) {
+      await supabase
+        .from("suppliers")
+        .update({ total_owed: remaining })
+        .eq("id", supplierId);
+    }
+
+    // تحديث المخزن - زيادة الكمية
+    for (const item of cartItems) {
+      const product = products.find((p) => p.id === item.product_id);
+      await supabase
+        .from("products")
+        .update({
+          quantity: (product?.quantity || 0) + item.quantity,
+          cost_price: item.cost_price,
+        })
+        .eq("id", item.product_id);
+
+      await supabase.from("inventory_log").insert({
+        product_id: item.product_id,
+        product_name: item.product_name,
+        change_type: "purchase",
+        quantity_change: item.quantity,
+        invoice_id: invoice.id,
+      });
+    }
+
+    message.success("تم حفظ فاتورة الشراء!");
+    setModalOpen(false);
+    setCartItems([]);
+    setSupplierName("");
+    setSupplierPhone("");
+    setPaidAmount(0);
+    fetchInvoices();
+    fetchProducts();
+  }
+
+  async function handleAddPayment() {
+    if (!paymentAmount || paymentAmount <= 0)
+      return message.error("ادخل مبلغ صح");
+    if (paymentAmount > selectedInvoice.remaining_amount)
+      return message.error("المبلغ أكبر من المتبقي");
+
+    await supabase
+      .from("payments")
+      .insert({ invoice_id: selectedInvoice.id, amount: paymentAmount });
+    await supabase
+      .from("invoices")
+      .update({ paid_amount: selectedInvoice.paid_amount + paymentAmount })
+      .eq("id", selectedInvoice.id);
+
+    message.success("تم تسجيل الدفعة");
+    setPaymentModalOpen(false);
+    setPaymentAmount(0);
+    fetchInvoices();
+  }
+
+  async function handleSaveEditedInvoice() {
+    if (!editingInvoice) return;
+    if (!editSupplierName.trim()) return message.error("ادخل اسم المورد");
+    if (editCartItems.length === 0) return message.error("أضف منتج واحد على الأقل");
+
+    let supplierId = editingInvoice.supplier_id;
+    const { data: existing } = await supabase
+      .from("suppliers")
+      .select("id")
+      .eq("phone", editSupplierPhone)
+      .single();
+    if (existing) {
+      supplierId = existing.id;
+      await supabase
+        .from("suppliers")
+        .update({ name: editSupplierName, phone: editSupplierPhone })
+        .eq("id", supplierId);
+    } else {
+      const { data: newSupplier } = await supabase
+        .from("suppliers")
+        .insert({ name: editSupplierName, phone: editSupplierPhone })
+        .select("id")
+        .single();
+      supplierId = newSupplier?.id || supplierId;
+    }
+
+    const oldQtyByProduct = new Map();
+    (editingInvoice.invoice_items || []).forEach((item) => {
+      oldQtyByProduct.set(
+        item.product_id,
+        (oldQtyByProduct.get(item.product_id) || 0) + item.quantity,
+      );
+    });
+    const newQtyByProduct = new Map();
+    editCartItems.forEach((item) => {
+      newQtyByProduct.set(
+        item.product_id,
+        (newQtyByProduct.get(item.product_id) || 0) + item.quantity,
+      );
+    });
+    const allProductIds = new Set([
+      ...oldQtyByProduct.keys(),
+      ...newQtyByProduct.keys(),
+    ]);
+
+    for (const productId of allProductIds) {
+      const oldQty = oldQtyByProduct.get(productId) || 0;
+      const newQty = newQtyByProduct.get(productId) || 0;
+      const delta = newQty - oldQty;
+      if (delta === 0) continue;
+
+      const product = products.find((p) => p.id === productId);
+      const currentQty = product?.quantity || 0;
+      const updatedQty = currentQty + delta;
+      if (updatedQty < 0) return message.error("التعديل هيخلي المخزون بالسالب");
+
+      const editedItem = editCartItems.find((i) => i.product_id === productId);
+      await supabase
+        .from("products")
+        .update({
+          quantity: updatedQty,
+          ...(editedItem ? { cost_price: editedItem.cost_price } : {}),
+        })
+        .eq("id", productId);
+
+      await supabase.from("inventory_log").insert({
+        product_id: productId,
+        product_name:
+          editedItem?.product_name ||
+          editingInvoice.invoice_items.find((i) => i.product_id === productId)
+            ?.product_name,
+        change_type: delta > 0 ? "purchase_edit" : "purchase_reverse_edit",
+        quantity_change: delta,
+        invoice_id: editingInvoice.id,
+      });
+    }
+
+    const adjustedPaidAmount = Math.min(editingInvoice.paid_amount || 0, editTotalAmount);
+
+    await supabase
+      .from("invoices")
+      .update({
+        supplier_id: supplierId,
+        total_amount: editTotalAmount,
+        paid_amount: adjustedPaidAmount,
+      })
+      .eq("id", editingInvoice.id);
+
+    await supabase.from("invoice_items").delete().eq("invoice_id", editingInvoice.id);
+    await supabase.from("invoice_items").insert(
+      editCartItems.map((i) => ({
+        invoice_id: editingInvoice.id,
+        product_id: i.product_id,
+        product_name: i.product_name,
+        product_size: i.product_size,
+        quantity: i.quantity,
+        unit_price: i.cost_price,
+        cost_price: i.cost_price,
+      })),
+    );
+
+    message.success("تم تعديل الفاتورة");
+    setEditModalOpen(false);
+    setEditingInvoice(null);
+    fetchInvoices();
+    fetchProducts();
+  }
+
+  async function refreshSupplierOwed(supplierId) {
+    if (!supplierId) return;
+    const { data: supplierInvoices } = await supabase
+      .from("invoices")
+      .select("remaining_amount")
+      .eq("type", "supplier")
+      .eq("status", "active")
+      .eq("supplier_id", supplierId);
+
+    const totalOwed = (supplierInvoices || []).reduce(
+      (sum, inv) => sum + (inv.remaining_amount || 0),
+      0,
+    );
+
+    await supabase
+      .from("suppliers")
+      .update({ total_owed: totalOwed })
+      .eq("id", supplierId);
+  }
+
+  async function handleDeleteInvoice(invoice) {
+    for (const item of invoice.invoice_items || []) {
+      const product = products.find((p) => p.id === item.product_id);
+      const currentQty = product?.quantity || 0;
+      const updatedQty = currentQty - item.quantity;
+      if (updatedQty < 0) {
+        return message.error(
+          `لا يمكن حذف الفاتورة لأن "${item.product_name}" الكمية الحالية لا تكفي`,
+        );
+      }
+    }
+
+    for (const item of invoice.invoice_items || []) {
+      const product = products.find((p) => p.id === item.product_id);
+      if (!product) continue;
+
+      await supabase
+        .from("products")
+        .update({ quantity: (product.quantity || 0) - item.quantity })
+        .eq("id", item.product_id);
+
+      await supabase.from("inventory_log").insert({
+        product_id: item.product_id,
+        product_name: item.product_name,
+        change_type: "purchase_delete_revert",
+        quantity_change: -item.quantity,
+        invoice_id: invoice.id,
+      });
+    }
+
+    const { error } = await supabase
+      .from("invoices")
+      .update({ status: "returned" })
+      .eq("id", invoice.id);
+    if (error) return message.error(error.message || "حصل خطأ أثناء حذف الفاتورة");
+
+    await refreshSupplierOwed(invoice.supplier_id);
+    message.success("تم حذف الفاتورة وتحديث المخزن");
+    fetchInvoices();
+    fetchProducts();
+  }
+
+  function handlePrint(invoice) {
+    const items = invoice.invoice_items || [];
+    const payments = invoice.payments || [];
+    const win = window.open("", "_blank");
+    win.document.write(`
+      <html><head><meta charset="utf-8">
+      <style>
+        body{font-family:Arial;direction:rtl;padding:20px}
+        h2{text-align:center}
+        table{width:100%;border-collapse:collapse;margin-top:16px}
+        th,td{border:1px solid #000;padding:8px;text-align:right}
+        th{background:#f0f0f0}
+        .total{font-size:16px;font-weight:bold;margin-top:8px}
+      </style></head><body>
+      <h2>🏪 المعروف للسجاد - فاتورة شراء</h2>
+      <p>فاتورة رقم: ${invoice.invoice_number}</p>
+      <p>المورد: ${invoice.suppliers?.name || ""}</p>
+      <p>التاريخ: ${new Date(invoice.created_at).toLocaleString("ar-EG")}</p>
+      <table>
+        <tr><th>المنتج</th><th>المقاس</th><th>الكمية</th><th>سعر الشراء</th><th>الإجمالي</th></tr>
+        ${items
+          .map(
+            (i) => `<tr>
+          <td>${i.product_name}</td><td>${i.product_size}</td>
+          <td>${i.quantity}</td><td>${i.unit_price} ج</td><td>${i.total_price} ج</td>
+        </tr>`,
+          )
+          .join("")}
+      </table>
+      <div class="total">الإجمالي: ${invoice.total_amount} ج</div>
+      <div class="total">المدفوع: ${invoice.paid_amount} ج</div>
+      <div class="total">المتبقي علينا: ${invoice.remaining_amount} ج</div>
+      ${
+        payments.length > 0
+          ? `
+        <h3>سجل الدفعات</h3>
+        <table>
+          <tr><th>التاريخ</th><th>المبلغ</th><th>ملاحظات</th></tr>
+          ${payments
+            .map(
+              (p) => `<tr>
+            <td>${new Date(p.payment_date).toLocaleString("ar-EG")}</td>
+            <td>${p.amount} ج</td><td>${p.notes || ""}</td>
+          </tr>`,
+            )
+            .join("")}
+        </table>`
+          : ""
+      }
+      </body></html>
+    `);
+    win.document.close();
+    win.print();
+  }
+
+  const columns = [
+    {
+      title: "رقم الفاتورة",
+      dataIndex: "invoice_number",
+      render: (v) => `#${v}`,
+    },
+    {
+      title: "المورد",
+      key: "supplier",
+      render: (_, r) => r.suppliers?.name || "-",
+    },
+    {
+      title: "التاريخ",
+      dataIndex: "created_at",
+      render: (v) => new Date(v).toLocaleString("ar-EG"),
+    },
+    { title: "الإجمالي", dataIndex: "total_amount", render: (v) => `${v} ج` },
+    { title: "المدفوع", dataIndex: "paid_amount", render: (v) => `${v} ج` },
+    {
+      title: "المتبقي علينا",
+      dataIndex: "remaining_amount",
+      render: (v) =>
+        v > 0 ? <Tag color="red">{v} ج</Tag> : <Tag color="green">مسدد</Tag>,
+    },
+    {
+      title: "إجراءات",
+      key: "actions",
+      render: (_, record) => (
+        <Space>
+          <Button
+            className="btn-action btn-details"
+            icon={<FileTextOutlined />}
+            onClick={() => {
+              setSelectedInvoice(record);
+              setDetailsModalOpen(true);
+            }}
+          >
+            تفاصيل
+          </Button>
+          <Button
+            className="btn-action btn-payment"
+            icon={<DollarOutlined />}
+            disabled={record.remaining_amount <= 0}
+            onClick={() => {
+              setSelectedInvoice(record);
+              setPaymentAmount(0);
+              setPaymentModalOpen(true);
+            }}
+          >
+            دفعة
+          </Button>
+          <Button
+            className="btn-action btn-print"
+            icon={<PrinterOutlined />}
+            onClick={() => handlePrint(record)}
+          >
+            طباعة
+          </Button>
+          <Button
+            className="btn-action btn-edit"
+            icon={<EditOutlined />}
+            onClick={() => openEditInvoice(record)}
+          >
+            تعديل
+          </Button>
+          <Popconfirm
+            title="حذف الفاتورة؟"
+            description="هيتم إلغاء الفاتورة وسحب تأثيرها من المخزن."
+            onConfirm={() => handleDeleteInvoice(record)}
+            okText="حذف"
+            cancelText="إلغاء"
+          >
+            <Button className="btn-action btn-delete" icon={<DeleteOutlined />}>
+              حذف
+            </Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ];
+
+  return (
+    <div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          marginBottom: 24,
+        }}
+      >
+        <h2 style={{ margin: 0 }}>🚚 فواتير الموردين</h2>
+        <Button
+          type="primary"
+          className="btn-add"
+          icon={<PlusOutlined />}
+          onClick={() => {
+            setCartItems([]);
+            setPaidAmount(0);
+            setModalOpen(true);
+          }}
+        >
+          فاتورة شراء جديدة
+        </Button>
+      </div>
+
+      <Table
+        columns={columns}
+        dataSource={invoices}
+        rowKey="id"
+        loading={loading}
+        pagination={{ pageSize: 15 }}
+      />
+
+      {/* Modal فاتورة جديدة */}
+      <Modal
+        title="فاتورة شراء جديدة"
+        open={modalOpen}
+        onOk={handleSaveInvoice}
+        onCancel={() => setModalOpen(false)}
+        okText="حفظ"
+        cancelText="إلغاء"
+        width={750}
+      >
+        <Divider>بيانات المورد</Divider>
+        <Space direction="vertical" style={{ width: "100%", marginBottom: 16 }}>
+          <Input
+            placeholder="اسم المورد *"
+            value={supplierName}
+            onChange={(e) => setSupplierName(e.target.value)}
+          />
+          <Input
+            placeholder="رقم التليفون"
+            value={supplierPhone}
+            onChange={(e) => setSupplierPhone(e.target.value)}
+          />
+        </Space>
+
+        <Divider>المنتجات المشتراة</Divider>
+        <AutoComplete
+          style={{ width: "100%", marginBottom: 16 }}
+          options={productOptions}
+          onSearch={handleProductSearch}
+          onSelect={handleProductSelect}
+          value={searchProduct}
+          placeholder="🔍 ابحث عن منتج موجود في المخزن..."
+        />
+
+        {cartItems.length > 0 && (
+          <Table
+            dataSource={cartItems}
+            rowKey="product_id"
+            pagination={false}
+            size="small"
+            columns={[
+              { title: "المنتج", dataIndex: "product_name" },
+              { title: "المقاس", dataIndex: "product_size" },
+              {
+                title: "الكمية",
+                key: "qty",
+                render: (_, r) => (
+                  <InputNumber
+                    min={1}
+                    value={r.quantity}
+                    onChange={(v) => updateQuantity(r.product_id, v)}
+                    style={{ width: 70 }}
+                  />
+                ),
+              },
+              {
+                title: "سعر الشراء",
+                key: "cost",
+                render: (_, r) => (
+                  <InputNumber
+                    min={0}
+                    value={r.cost_price}
+                    onChange={(v) => updateCostPrice(r.product_id, v)}
+                    style={{ width: 100 }}
+                    formatter={(v) => `${v} ج`}
+                  />
+                ),
+              },
+              {
+                title: "الإجمالي",
+                key: "total",
+                render: (_, r) => `${r.total} ج`,
+              },
+              {
+                title: "",
+                key: "del",
+                render: (_, r) => (
+                  <Button
+                    danger
+                    size="small"
+                    icon={<DeleteOutlined />}
+                    onClick={() => removeItem(r.product_id)}
+                  />
+                ),
+              },
+            ]}
+            footer={() => <strong>الإجمالي: {totalAmount} ج</strong>}
+          />
+        )}
+
+        <Divider>الدفع</Divider>
+        <Space direction="vertical" style={{ width: "100%" }}>
+          <div>
+            الإجمالي: <strong>{totalAmount} ج</strong>
+          </div>
+          <InputNumber
+            style={{ width: "100%" }}
+            placeholder="المبلغ المدفوع"
+            min={0}
+            max={totalAmount}
+            value={paidAmount}
+            onChange={(v) => setPaidAmount(v || 0)}
+            formatter={(v) => `${v} ج`}
+          />
+          <div>
+            المتبقي علينا:{" "}
+            <strong
+              style={{ color: totalAmount - paidAmount > 0 ? "red" : "green" }}
+            >
+              {totalAmount - paidAmount} ج
+            </strong>
+          </div>
+        </Space>
+      </Modal>
+
+      <Modal
+        title={`تعديل فاتورة مورد #${editingInvoice?.invoice_number || ""}`}
+        open={editModalOpen}
+        onOk={handleSaveEditedInvoice}
+        onCancel={() => setEditModalOpen(false)}
+        okText="حفظ التعديل"
+        cancelText="إلغاء"
+        width={750}
+      >
+        <Divider>بيانات المورد</Divider>
+        <Space direction="vertical" style={{ width: "100%", marginBottom: 16 }}>
+          <Input
+            placeholder="اسم المورد *"
+            value={editSupplierName}
+            onChange={(e) => setEditSupplierName(e.target.value)}
+          />
+          <Input
+            placeholder="رقم التليفون"
+            value={editSupplierPhone}
+            onChange={(e) => setEditSupplierPhone(e.target.value)}
+          />
+        </Space>
+
+        <Divider>المنتجات</Divider>
+        <AutoComplete
+          style={{ width: "100%", marginBottom: 16 }}
+          options={editProductOptions}
+          onSearch={handleEditProductSearch}
+          onSelect={handleEditProductSelect}
+          value={editSearchProduct}
+          placeholder="🔍 ابحث عن منتج..."
+        />
+
+        {editCartItems.length > 0 && (
+          <Table
+            dataSource={editCartItems}
+            rowKey="product_id"
+            pagination={false}
+            size="small"
+            columns={[
+              { title: "المنتج", dataIndex: "product_name" },
+              { title: "المقاس", dataIndex: "product_size" },
+              {
+                title: "الكمية",
+                key: "qty",
+                render: (_, r) => (
+                  <InputNumber
+                    min={1}
+                    value={r.quantity}
+                    onChange={(v) => updateEditQuantity(r.product_id, v)}
+                    style={{ width: 70 }}
+                  />
+                ),
+              },
+              {
+                title: "سعر الشراء",
+                key: "cost",
+                render: (_, r) => (
+                  <InputNumber
+                    min={0}
+                    value={r.cost_price}
+                    onChange={(v) => updateEditCostPrice(r.product_id, v)}
+                    style={{ width: 100 }}
+                    formatter={(v) => `${v} ج`}
+                  />
+                ),
+              },
+              {
+                title: "الإجمالي",
+                key: "total",
+                render: (_, r) => `${r.total} ج`,
+              },
+              {
+                title: "",
+                key: "del",
+                render: (_, r) => (
+                  <Button
+                    danger
+                    size="small"
+                    icon={<DeleteOutlined />}
+                    onClick={() => removeEditItem(r.product_id)}
+                  />
+                ),
+              },
+            ]}
+            footer={() => <strong>الإجمالي: {editTotalAmount} ج</strong>}
+          />
+        )}
+      </Modal>
+
+      {/* Modal دفعة */}
+      <Modal
+        title={`تسجيل دفعة للمورد - فاتورة #${selectedInvoice?.invoice_number}`}
+        open={paymentModalOpen}
+        onOk={handleAddPayment}
+        onCancel={() => setPaymentModalOpen(false)}
+        okText="تسجيل"
+        cancelText="إلغاء"
+      >
+        {selectedInvoice && (
+          <Space direction="vertical" style={{ width: "100%", marginTop: 16 }}>
+            <div>
+              المتبقي علينا:{" "}
+              <strong style={{ color: "red" }}>
+                {selectedInvoice.remaining_amount} ج
+              </strong>
+            </div>
+            <InputNumber
+              style={{ width: "100%" }}
+              placeholder="المبلغ"
+              min={1}
+              max={selectedInvoice.remaining_amount}
+              value={paymentAmount}
+              onChange={(v) => setPaymentAmount(v)}
+              formatter={(v) => `${v} ج`}
+            />
+          </Space>
+        )}
+      </Modal>
+
+      {/* Modal تفاصيل */}
+      <Modal
+        title={`تفاصيل فاتورة #${selectedInvoice?.invoice_number}`}
+        open={detailsModalOpen}
+        onCancel={() => setDetailsModalOpen(false)}
+        footer={[
+          <Button
+            key="print"
+            icon={<PrinterOutlined />}
+            onClick={() => handlePrint(selectedInvoice)}
+          >
+            طباعة
+          </Button>,
+          <Button key="close" onClick={() => setDetailsModalOpen(false)}>
+            إغلاق
+          </Button>,
+        ]}
+        width={650}
+      >
+        {selectedInvoice && (
+          <>
+            <Descriptions bordered size="small" style={{ marginBottom: 16 }}>
+              <Descriptions.Item label="المورد" span={3}>
+                {selectedInvoice.suppliers?.name}
+              </Descriptions.Item>
+              <Descriptions.Item label="التاريخ" span={3}>
+                {new Date(selectedInvoice.created_at).toLocaleString("ar-EG")}
+              </Descriptions.Item>
+              <Descriptions.Item label="الإجمالي">
+                {selectedInvoice.total_amount} ج
+              </Descriptions.Item>
+              <Descriptions.Item label="المدفوع">
+                {selectedInvoice.paid_amount} ج
+              </Descriptions.Item>
+              <Descriptions.Item label="المتبقي علينا">
+                <span
+                  style={{
+                    color:
+                      selectedInvoice.remaining_amount > 0 ? "red" : "green",
+                  }}
+                >
+                  {selectedInvoice.remaining_amount} ج
+                </span>
+              </Descriptions.Item>
+            </Descriptions>
+
+            <Table
+              dataSource={selectedInvoice.invoice_items}
+              rowKey="id"
+              pagination={false}
+              size="small"
+              columns={[
+                { title: "المنتج", dataIndex: "product_name" },
+                { title: "المقاس", dataIndex: "product_size" },
+                { title: "الكمية", dataIndex: "quantity" },
+                {
+                  title: "سعر الشراء",
+                  dataIndex: "unit_price",
+                  render: (v) => `${v} ج`,
+                },
+                {
+                  title: "الإجمالي",
+                  dataIndex: "total_price",
+                  render: (v) => `${v} ج`,
+                },
+              ]}
+            />
+
+            {selectedInvoice.payments?.length > 0 && (
+              <>
+                <Divider>سجل الدفعات</Divider>
+                <Table
+                  dataSource={selectedInvoice.payments}
+                  rowKey="id"
+                  pagination={false}
+                  size="small"
+                  columns={[
+                    {
+                      title: "التاريخ",
+                      dataIndex: "payment_date",
+                      render: (v) => new Date(v).toLocaleString("ar-EG"),
+                    },
+                    {
+                      title: "المبلغ",
+                      dataIndex: "amount",
+                      render: (v) => `${v} ج`,
+                    },
+                    { title: "ملاحظات", dataIndex: "notes" },
+                  ]}
+                />
+              </>
+            )}
+          </>
+        )}
+      </Modal>
+    </div>
+  );
+}

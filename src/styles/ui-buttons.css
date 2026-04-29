@@ -1,0 +1,75 @@
+.btn-action {
+  border-radius: 12px !important;
+  font-weight: 700 !important;
+  border: none !important;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.16) !important;
+  transition: transform 0.18s ease, box-shadow 0.18s ease, filter 0.18s ease !important;
+}
+
+.btn-action:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 12px 24px rgba(15, 23, 42, 0.22) !important;
+  filter: saturate(1.05);
+}
+
+.btn-action:active {
+  transform: translateY(0);
+}
+
+.btn-edit {
+  background: linear-gradient(135deg, #fb923c 0%, #f97316 100%) !important;
+  color: #fff !important;
+}
+
+.btn-edit:hover {
+  background: linear-gradient(135deg, #fd9a47 0%, #ea580c 100%) !important;
+}
+
+.btn-details {
+  background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%) !important;
+  color: #fff !important;
+}
+
+.btn-details:hover {
+  background: linear-gradient(135deg, #7477f5 0%, #4338ca 100%) !important;
+}
+
+.btn-print {
+  background: linear-gradient(135deg, #a78bfa 0%, #7c3aed 100%) !important;
+  color: #fff !important;
+}
+
+.btn-print:hover {
+  background: linear-gradient(135deg, #b29afc 0%, #6d28d9 100%) !important;
+}
+
+.btn-payment {
+  background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%) !important;
+  color: #fff !important;
+}
+
+.btn-payment:hover {
+  background: linear-gradient(135deg, #34d26d 0%, #15803d 100%) !important;
+}
+
+.btn-delete {
+  background: linear-gradient(135deg, #fb7185 0%, #e11d48 100%) !important;
+  color: #fff !important;
+}
+
+.btn-delete:hover {
+  background: linear-gradient(135deg, #fd7b8e 0%, #be123c 100%) !important;
+}
+
+.btn-add {
+  border-radius: 14px !important;
+  font-weight: 700 !important;
+  border: none !important;
+  background: linear-gradient(135deg, #22d3ee 0%, #4f46e5 100%) !important;
+  box-shadow: 0 10px 20px rgba(79, 70, 229, 0.28) !important;
+}
+
+.btn-add:hover {
+  background: linear-gradient(135deg, #3cddf5 0%, #4338ca 100%) !important;
+  transform: translateY(-1px);
+}
