@@ -1,16 +1,155 @@
-# React + Vite
+# Carpet Shop Management System
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+A full-stack business management system built for a carpet retail shop. Handles sales invoices, trader accounts, supplier purchases, inventory tracking, and financial reports — all in a clean Arabic RTL interface.
 
-Currently, two official plugins are available:
+---
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## ✨ Features
 
-## React Compiler
+### 🛒 Sales (Customers)
+- Create invoices with product search
+- Editable pricing per invoice (negotiation support)
+- Invoice history with full details
+- Print-ready invoice layout
+- Return processing with automatic inventory restoration
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 🤝 Traders
+- Trader-specific pricing per invoice
+- Partial payment tracking with payment history
+- Outstanding debt overview
+- Print invoices with payment records
 
-## Expanding the ESLint configuration
+### 🚚 Suppliers
+- Purchase invoice management
+- Track amounts owed to each supplier
+- Payment installment recording
+- Automatic inventory update on purchase
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+### 📦 Inventory
+- Add, edit, and delete products
+- Track quantity, selling price, and cost price
+- Low stock alerts with configurable minimum threshold
+- Real-time sync across all invoice types
+
+### 📊 Reports
+- Daily, weekly, and monthly sales reports
+- Profit estimation per period
+- Debt overview (traders owe you / you owe suppliers)
+- Net financial position summary
+- Low stock warnings
+
+### 🔐 Authentication
+- Login-protected access
+- Admin role system
+- Auto-redirect for unauthenticated users
+
+---
+
+## 🛠️ Tech Stack
+
+| Layer | Technology |
+|--|--|
+| Frontend | React 19 + Vite 8 |
+| UI Library | Ant Design 6 |
+| Routing | React Router DOM 7 |
+| Backend & Database | Supabase (PostgreSQL) |
+| Hosting | Vercel |
+
+---
+
+## 🗄️ Database Schema
+
+```
+products        → Product catalog (name, size, selling price, cost price, quantity)
+customers       → Customer records
+traders         → Trader accounts with debt tracking
+suppliers       → Supplier accounts with owed amount tracking
+invoices        → All invoices (type: customer / trader / supplier)
+invoice_items   → Line items per invoice
+payments        → Payment installment records
+inventory_log   → Full inventory movement history
+```
+
+---
+
+## 📁 Project Structure
+
+```
+src/
+├── components/
+│   └── Navbar.jsx         # Sidebar navigation + layout
+├── pages/
+│   ├── Login.jsx          # Authentication page
+│   ├── Customers.jsx      # Customer invoices
+│   ├── Traders.jsx        # Trader invoices + payments
+│   ├── Suppliers.jsx      # Supplier purchases + payments
+│   ├── Inventory.jsx      # Product management
+│   └── Reports.jsx        # Financial reports & analytics
+├── supabaseClient.js      # Supabase connection
+└── App.jsx                # Root with auth routing
+```
+
+---
+
+## ⚙️ Getting Started
+
+### Prerequisites
+- Node.js 18+
+- A [Supabase](https://supabase.com) account
+
+### Installation
+
+```bash
+git clone https://github.com/MazenMohammed534/carpet-shop.git
+cd carpet-shop
+npm install
+```
+
+### Environment Variables
+
+Create a `.env.local` file in the root:
+
+```env
+VITE_SUPABASE_URL=your_supabase_project_url
+VITE_SUPABASE_ANON_KEY=your_supabase_anon_key
+```
+
+### Run Locally
+
+```bash
+npm run dev
+```
+
+### Build for Production
+
+```bash
+npm run build
+```
+
+---
+
+## 🔒 Security
+
+- **Row Level Security (RLS)** enabled on all Supabase tables
+- Only authenticated users can read or write any data
+- Environment variables used for all sensitive keys — never hardcoded
+- Sign-ups disabled in Supabase (single-owner system)
+- Protected routes redirect unauthenticated users to login
+
+---
+
+## 🚀 Deployment
+
+This project is deployed on **Vercel** with automatic deployments on every push to `main`.
+
+To deploy your own instance:
+1. Fork this repository
+2. Connect to [Vercel](https://vercel.com)
+3. Add your environment variables in Vercel project settings
+4. Deploy!
+
+---
+
+## 📄 License
+
+This project is private and built for personal business use.
