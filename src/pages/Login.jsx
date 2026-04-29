@@ -4,21 +4,31 @@ import { UserOutlined, LockOutlined } from "@ant-design/icons";
 
 const DEFAULT_USERNAME = "admin";
 const DEFAULT_PASSWORD = "carpet123";
+const DEFAULT_CASHIER_USERNAME = "cashier";
+const DEFAULT_CASHIER_PASSWORD = "cashier123";
 
 export default function Login({ onLogin }) {
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(values) {
     setLoading(true);
-    const validUsername = import.meta.env.VITE_LOGIN_USERNAME || DEFAULT_USERNAME;
-    const validPassword = import.meta.env.VITE_LOGIN_PASSWORD || DEFAULT_PASSWORD;
+    const adminUsername = import.meta.env.VITE_LOGIN_USERNAME || DEFAULT_USERNAME;
+    const adminPassword = import.meta.env.VITE_LOGIN_PASSWORD || DEFAULT_PASSWORD;
+    const cashierUsername = DEFAULT_CASHIER_USERNAME;
+    const cashierPassword = DEFAULT_CASHIER_PASSWORD;
 
     if (
-      values.username?.trim() === validUsername &&
-      values.password === validPassword
+      values.username?.trim() === adminUsername &&
+      values.password === adminPassword
     ) {
-      onLogin();
+      onLogin("admin");
       message.success("تم تسجيل الدخول");
+    } else if (
+      values.username?.trim() === cashierUsername &&
+      values.password === cashierPassword
+    ) {
+      onLogin("cashier");
+      message.success("تم تسجيل دخول الكاشير");
     } else {
       message.error("اسم المستخدم أو كلمة المرور غير صحيحة");
     }

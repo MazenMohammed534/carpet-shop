@@ -1,5 +1,5 @@
 import { Layout, Menu, Button, Drawer, Grid } from "antd";
-import { useNavigate, useLocation, Routes, Route } from "react-router-dom";
+import { useNavigate, useLocation, Routes, Route, Navigate } from "react-router-dom";
 import { useState } from "react";
 import {
   ShoppingCartOutlined,
@@ -27,12 +27,18 @@ const items = [
   { key: "/reports", icon: <BarChartOutlined />, label: "التقارير" },
 ];
 
-export default function Navbar({ onLogout }) {
+export default function Navbar({ onLogout, role }) {
   const navigate = useNavigate();
   const location = useLocation();
   const screens = useBreakpoint();
   const isMobile = !screens.md;
   const [drawerOpen, setDrawerOpen] = useState(false);
+  const isAdmin = role === "admin";
+
+  const allowedItems = isAdmin ? items : items.filter((item) => item.key === "/");
+  const selectedKey = allowedItems.some((item) => item.key === location.pathname)
+    ? location.pathname
+    : "/";
 
   const menuNode = (
     <>
@@ -40,8 +46,8 @@ export default function Navbar({ onLogout }) {
       <Menu
         theme="dark"
         mode="inline"
-        selectedKeys={[location.pathname]}
-        items={items}
+        selectedKeys={[selectedKey]}
+        items={allowedItems}
         onClick={({ key }) => {
           navigate(key);
           setDrawerOpen(false);
@@ -104,11 +110,12 @@ export default function Navbar({ onLogout }) {
       <Layout className="app-main">
         <Content className="app-content">
           <Routes>
-            <Route path="/inventory" element={<Inventory />} />
             <Route path="/" element={<Customers />} />
-            <Route path="/traders" element={<Traders />} />
-            <Route path="/suppliers" element={<Suppliers />} />
-            <Route path="/reports" element={<Reports />} />
+            {isAdmin && <Route path="/inventory" element={<Inventory />} />}
+            {isAdmin && <Route path="/traders" element={<Traders />} />}
+            {isAdmin && <Route path="/suppliers" element={<Suppliers />} />}
+            {isAdmin && <Route path="/reports" element={<Reports />} />}
+            <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Content>
       </Layout>

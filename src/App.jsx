@@ -5,23 +5,33 @@ import Navbar from "./components/Navbar";
 import Login from "./pages/Login";
 
 const AUTH_KEY = "carpet-shop-auth";
+const ROLE_KEY = "carpet-shop-role";
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [userRole, setUserRole] = useState("admin");
 
   useEffect(() => {
     const savedAuth = localStorage.getItem(AUTH_KEY);
+    const savedRole = localStorage.getItem(ROLE_KEY);
     setIsAuthenticated(savedAuth === "true");
+    if (savedRole === "admin" || savedRole === "cashier") {
+      setUserRole(savedRole);
+    }
   }, []);
 
-  function handleLogin() {
+  function handleLogin(role) {
     localStorage.setItem(AUTH_KEY, "true");
+    localStorage.setItem(ROLE_KEY, role);
     setIsAuthenticated(true);
+    setUserRole(role);
   }
 
   function handleLogout() {
     localStorage.removeItem(AUTH_KEY);
+    localStorage.removeItem(ROLE_KEY);
     setIsAuthenticated(false);
+    setUserRole("admin");
   }
 
   return (
@@ -74,7 +84,7 @@ function App() {
             path="/*"
             element={
               isAuthenticated ? (
-                <Navbar onLogout={handleLogout} />
+                <Navbar onLogout={handleLogout} role={userRole} />
               ) : (
                 <Navigate to="/login" replace />
               )
