@@ -662,14 +662,7 @@ export default function Suppliers() {
 
   return (
     <div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 24,
-        }}
-      >
+      <div className="app-page-header">
         <h2 style={{ margin: 0 }}>🚚 فواتير الموردين</h2>
         <Button
           type="primary"

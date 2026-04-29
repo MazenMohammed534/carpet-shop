@@ -694,14 +694,7 @@ export default function Traders() {
 
   return (
     <div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 24,
-        }}
-      >
+      <div className="app-page-header">
         <h2 style={{ margin: 0 }}>🤝 فواتير التجار</h2>
         <Button
           type="primary"

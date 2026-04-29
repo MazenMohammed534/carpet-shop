@@ -72,6 +72,7 @@ function TabBar({ tabs, active, onChange }) {
         background: "#f4f6fa",
         borderRadius: 12,
         padding: 6,
+        flexWrap: "wrap",
       }}
     >
       {tabs.map((t) => (
@@ -79,7 +80,7 @@ function TabBar({ tabs, active, onChange }) {
           key={t.key}
           onClick={() => onChange(t.key)}
           style={{
-            flex: 1,
+            flex: "1 1 140px",
             padding: "10px 0",
             borderRadius: 8,
             border: "none",
@@ -319,7 +320,7 @@ export default function Reports() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(4, 1fr)",
+          gridTemplateColumns: "repeat(auto-fit, minmax(170px, 1fr))",
           gap: 16,
           marginBottom: 28,
         }}
@@ -386,7 +387,13 @@ export default function Reports() {
 
   // ── محتوى تاب الديون ──────────────────────────────────
   const DebtsTab = (
-    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+        gap: 20,
+      }}
+    >
       {/* ديون التجار */}
       <div
         style={{
@@ -540,7 +547,7 @@ export default function Reports() {
           padding: 20,
           boxShadow: "0 1px 6px rgba(0,0,0,0.06)",
           display: "grid",
-          gridTemplateColumns: "1fr 1fr 1fr",
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
           gap: 16,
         }}
       >
@@ -573,7 +580,7 @@ export default function Reports() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(3, 1fr)",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
           gap: 16,
           marginBottom: 24,
         }}

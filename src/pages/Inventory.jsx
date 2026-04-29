@@ -145,14 +145,7 @@ export default function Inventory() {
 
   return (
     <div>
-      <div
-        style={{
-          display: "flex",
-          justifyContent: "space-between",
-          alignItems: "center",
-          marginBottom: 24,
-        }}
-      >
+      <div className="app-page-header">
         <h2 style={{ margin: 0 }}>📦 المخزن</h2>
         <Button type="primary" className="btn-add" icon={<PlusOutlined />} onClick={openAdd}>
           إضافة منتج

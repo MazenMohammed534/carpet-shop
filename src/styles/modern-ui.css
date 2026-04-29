@@ -27,6 +27,7 @@ body {
 .app-main {
   margin-right: 200px;
   padding: 24px;
+  transition: margin-right 0.2s ease;
 }
 
 .app-content {
@@ -36,6 +37,7 @@ body {
   border-radius: 18px;
   padding: 18px;
   box-shadow: 0 12px 28px rgba(15, 23, 42, 0.09);
+  overflow-x: auto;
 }
 
 .logout-wrap {
@@ -57,4 +59,89 @@ body {
 .ant-modal .ant-modal-content {
   border-radius: 16px;
   box-shadow: 0 20px 40px rgba(15, 23, 42, 0.18);
+}
+
+.mobile-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: #0f172a;
+  color: #fff;
+  padding: 0 12px;
+  height: 56px;
+  line-height: 56px;
+}
+
+.mobile-menu-btn {
+  color: #fff !important;
+  font-size: 18px;
+}
+
+.mobile-brand {
+  font-weight: 700;
+  font-size: 15px;
+}
+
+.mobile-nav-drawer .ant-drawer-body {
+  padding: 0 !important;
+}
+
+.mobile-sider-content {
+  min-height: 100%;
+}
+
+.app-page-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+}
+
+.ant-table-wrapper {
+  width: 100%;
+}
+
+.ant-table-wrapper .ant-table-content {
+  overflow-x: auto;
+}
+
+@media (max-width: 991px) {
+  .app-main {
+    margin-right: 0;
+    padding: 12px;
+  }
+
+  .app-content {
+    padding: 12px;
+    border-radius: 12px;
+  }
+
+  .app-brand {
+    padding: 16px 12px;
+    font-size: 15px;
+  }
+
+  .logout-wrap {
+    padding: 10px;
+  }
+
+  .btn-action {
+    font-size: 12px !important;
+    padding-inline: 10px !important;
+  }
+
+  .btn-add {
+    width: 100%;
+  }
+
+  .ant-modal {
+    max-width: calc(100vw - 16px) !important;
+    margin: 8px auto;
+  }
+
+  .ant-modal .ant-modal-content {
+    padding: 14px;
+  }
 }
