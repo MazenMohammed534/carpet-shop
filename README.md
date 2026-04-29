@@ -59,35 +59,11 @@ A full-stack business management system built for a carpet retail shop. Handles 
 
 ## 🗄️ Database Schema
 
-```
-products        → Product catalog (name, size, selling price, cost price, quantity)
-customers       → Customer records
-traders         → Trader accounts with debt tracking
-suppliers       → Supplier accounts with owed amount tracking
-invoices        → All invoices (type: customer / trader / supplier)
-invoice_items   → Line items per invoice
-payments        → Payment installment records
-inventory_log   → Full inventory movement history
-```
-
----
+![Database Schema](docs/database-schema.png)
 
 ## 📁 Project Structure
 
-```
-src/
-├── components/
-│   └── Navbar.jsx         # Sidebar navigation + layout
-├── pages/
-│   ├── Login.jsx          # Authentication page
-│   ├── Customers.jsx      # Customer invoices
-│   ├── Traders.jsx        # Trader invoices + payments
-│   ├── Suppliers.jsx      # Supplier purchases + payments
-│   ├── Inventory.jsx      # Product management
-│   └── Reports.jsx        # Financial reports & analytics
-├── supabaseClient.js      # Supabase connection
-└── App.jsx                # Root with auth routing
-```
+![Project Structure](docs/project-structure.png)
 
 ---
 
