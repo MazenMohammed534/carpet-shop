@@ -59,11 +59,11 @@ A full-stack business management system built for a carpet retail shop. Handles 
 
 ## 🗄️ Database Schema
 
-![Database Schema](docs/database-schema.png)
+![Database Schema](docs/database_schema%20(1).png)
 
 ## 📁 Project Structure
 
-![Project Structure](docs/project-structure.png)
+![Project Structure](docs/project_structure.png)
 
 ---
 
