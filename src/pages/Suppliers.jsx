@@ -627,6 +627,11 @@ export default function Suppliers() {
       render: (_, r) => r.suppliers?.name || "-",
     },
     {
+      title: "رقم التليفون",
+      key: "supplier_phone",
+      render: (_, r) => r.suppliers?.phone || "-",
+    },
+    {
       title: "التاريخ",
       dataIndex: "created_at",
       render: (v) => new Date(v).toLocaleString("ar-EG"),

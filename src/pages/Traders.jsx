@@ -648,6 +648,11 @@ export default function Traders() {
       render: (_, r) => r.traders?.name || "-",
     },
     {
+      title: "رقم التليفون",
+      key: "trader_phone",
+      render: (_, r) => r.traders?.phone || "-",
+    },
+    {
       title: "التاريخ",
       dataIndex: "created_at",
       key: "date",

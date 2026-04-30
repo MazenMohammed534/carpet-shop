@@ -574,6 +574,16 @@ export default function Customers() {
       render: (v) => `#${v}`,
     },
     {
+      title: "الزبون",
+      key: "customer_name",
+      render: (_, r) => r.customers?.name || "-",
+    },
+    {
+      title: "رقم التليفون",
+      key: "customer_phone",
+      render: (_, r) => r.customers?.phone || "-",
+    },
+    {
       title: "التاريخ",
       dataIndex: "created_at",
       key: "created_at",
