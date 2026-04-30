@@ -69,6 +69,33 @@ export default function Suppliers() {
     setProducts(data || []);
   }
 
+  async function updateProductQuantitySafely(
+    productId,
+    expectedQuantity,
+    nextQuantity,
+    extraUpdates = {},
+  ) {
+    if (nextQuantity < 0) return { ok: false, reason: "negative" };
+    const { data, error } = await supabase
+      .from("products")
+      .update({ quantity: nextQuantity, ...extraUpdates })
+      .eq("id", productId)
+      .eq("quantity", expectedQuantity)
+      .select("id")
+      .maybeSingle();
+    if (error || !data) return { ok: false, reason: "conflict" };
+    return { ok: true };
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+  }
+
   function handleProductSearch(value) {
     setSearchProduct(value);
     setProductOptions(
@@ -315,25 +342,20 @@ export default function Suppliers() {
       });
     }
 
-    // تحديث ما علينا للمورد
-    const remaining = totalAmount - paidAmount;
-    if (remaining > 0) {
-      await supabase
-        .from("suppliers")
-        .update({ total_owed: remaining })
-        .eq("id", supplierId);
-    }
-
     // تحديث المخزن - زيادة الكمية
     for (const item of cartItems) {
       const product = products.find((p) => p.id === item.product_id);
-      await supabase
-        .from("products")
-        .update({
-          quantity: (product?.quantity || 0) + item.quantity,
-          cost_price: item.cost_price,
-        })
-        .eq("id", item.product_id);
+      const currentQty = product?.quantity || 0;
+      const nextQty = currentQty + item.quantity;
+      const stockUpdate = await updateProductQuantitySafely(
+        item.product_id,
+        currentQty,
+        nextQty,
+        { cost_price: item.cost_price },
+      );
+      if (!stockUpdate.ok) {
+        return message.error("حصل تعارض أثناء تحديث المخزون، أعد المحاولة");
+      }
 
       await supabase.from("inventory_log").insert({
         product_id: item.product_id,
@@ -350,6 +372,7 @@ export default function Suppliers() {
     setSupplierName("");
     setSupplierPhone("");
     setPaidAmount(0);
+    await refreshSupplierOwed(supplierId);
     fetchInvoices();
     fetchProducts();
   }
@@ -363,14 +386,24 @@ export default function Suppliers() {
     await supabase
       .from("payments")
       .insert({ invoice_id: selectedInvoice.id, amount: paymentAmount });
+    const { data: freshInvoice } = await supabase
+      .from("invoices")
+      .select("paid_amount, remaining_amount")
+      .eq("id", selectedInvoice.id)
+      .maybeSingle();
+    const latestPaid = freshInvoice?.paid_amount || 0;
+    const latestRemaining = freshInvoice?.remaining_amount || 0;
+    if (paymentAmount > latestRemaining)
+      return message.error("المبلغ أكبر من المتبقي الحالي");
     await supabase
       .from("invoices")
-      .update({ paid_amount: selectedInvoice.paid_amount + paymentAmount })
+      .update({ paid_amount: latestPaid + paymentAmount })
       .eq("id", selectedInvoice.id);
 
     message.success("تم تسجيل الدفعة");
     setPaymentModalOpen(false);
     setPaymentAmount(0);
+    await refreshSupplierOwed(selectedInvoice.supplier_id);
     fetchInvoices();
   }
 
@@ -444,16 +477,20 @@ export default function Suppliers() {
       const product = products.find((p) => p.id === productId);
       const currentQty = product?.quantity || 0;
       const updatedQty = currentQty + delta;
-      if (updatedQty < 0) return message.error("التعديل هيخلي المخزون بالسالب");
-
       const editedItem = editCartItems.find((i) => i.product_id === productId);
-      await supabase
-        .from("products")
-        .update({
-          quantity: updatedQty,
-          ...(editedItem ? { cost_price: editedItem.cost_price } : {}),
-        })
-        .eq("id", productId);
+      const stockUpdate = await updateProductQuantitySafely(
+        productId,
+        currentQty,
+        updatedQty,
+        editedItem ? { cost_price: editedItem.cost_price } : {},
+      );
+      if (!stockUpdate.ok) {
+        return message.error(
+          stockUpdate.reason === "negative"
+            ? "التعديل هيخلي المخزون بالسالب"
+            : "حصل تعارض على مخزون المنتجات، أعد المحاولة",
+        );
+      }
 
       await supabase.from("inventory_log").insert({
         product_id: productId,
@@ -494,6 +531,7 @@ export default function Suppliers() {
     message.success("تم تعديل الفاتورة");
     setEditModalOpen(false);
     setEditingInvoice(null);
+    await refreshSupplierOwed(supplierId);
     fetchInvoices();
     fetchProducts();
   }
@@ -533,11 +571,16 @@ export default function Suppliers() {
     for (const item of invoice.invoice_items || []) {
       const product = products.find((p) => p.id === item.product_id);
       if (!product) continue;
-
-      await supabase
-        .from("products")
-        .update({ quantity: (product.quantity || 0) - item.quantity })
-        .eq("id", item.product_id);
+      const currentQty = product.quantity || 0;
+      const updatedQty = currentQty - item.quantity;
+      const stockUpdate = await updateProductQuantitySafely(
+        item.product_id,
+        currentQty,
+        updatedQty,
+      );
+      if (!stockUpdate.ok) {
+        return message.error("حصل تعارض أثناء تحديث المخزون، أعد المحاولة");
+      }
 
       await supabase.from("inventory_log").insert({
         product_id: item.product_id,
@@ -563,6 +606,7 @@ export default function Suppliers() {
   function handlePrint(invoice) {
     const items = invoice.invoice_items || [];
     const payments = invoice.payments || [];
+    const supplierName = escapeHtml(invoice.suppliers?.name || "");
     const win = window.open("", "_blank");
     win.document.write(`
       <html><head><meta charset="utf-8">
@@ -576,15 +620,15 @@ export default function Suppliers() {
       </style></head><body>
       <h2>🏪 المعروف للسجاد - فاتورة شراء</h2>
       <p>فاتورة رقم: ${invoice.invoice_number}</p>
-      <p>المورد: ${invoice.suppliers?.name || ""}</p>
+      <p>المورد: ${supplierName}</p>
       <p>التاريخ: ${new Date(invoice.created_at).toLocaleString("ar-EG")}</p>
       <table>
         <tr><th>المنتج</th><th>المقاس</th><th>الكمية</th><th>سعر الشراء</th><th>الإجمالي</th></tr>
         ${items
           .map(
             (i) => `<tr>
-          <td>${i.product_name}</td><td>${i.product_size}</td>
-          <td>${i.quantity}</td><td>${i.unit_price} ج</td><td>${i.total_price} ج</td>
+          <td>${escapeHtml(i.product_name)}</td><td>${escapeHtml(i.product_size)}</td>
+          <td>${escapeHtml(i.quantity)}</td><td>${escapeHtml(i.unit_price)} ج</td><td>${escapeHtml(i.total_price)} ج</td>
         </tr>`,
           )
           .join("")}
@@ -602,7 +646,7 @@ export default function Suppliers() {
             .map(
               (p) => `<tr>
             <td>${new Date(p.payment_date).toLocaleString("ar-EG")}</td>
-            <td>${p.amount} ج</td><td>${p.notes || ""}</td>
+            <td>${escapeHtml(p.amount)} ج</td><td>${escapeHtml(p.notes || "")}</td>
           </tr>`,
             )
             .join("")}

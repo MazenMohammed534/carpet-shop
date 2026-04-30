@@ -3,36 +3,60 @@ import { ConfigProvider } from "antd";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import Navbar from "./components/Navbar";
 import Login from "./pages/Login";
+import { supabase } from "./supabaseClient";
 
-const AUTH_KEY = "carpet-shop-auth";
-const ROLE_KEY = "carpet-shop-role";
+function getRoleFromSession(session) {
+  const role = session?.user?.user_metadata?.role;
+  return role === "admin" || role === "cashier" ? role : null;
+}
 
 function App() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [userRole, setUserRole] = useState("admin");
+  const [userRole, setUserRole] = useState(null);
+  const [authReady, setAuthReady] = useState(false);
 
   useEffect(() => {
-    const savedAuth = localStorage.getItem(AUTH_KEY);
-    const savedRole = localStorage.getItem(ROLE_KEY);
-    setIsAuthenticated(savedAuth === "true");
-    if (savedRole === "admin" || savedRole === "cashier") {
-      setUserRole(savedRole);
+    let active = true;
+
+    async function initAuth() {
+      const { data } = await supabase.auth.getSession();
+      if (!active) return;
+      const role = getRoleFromSession(data.session);
+      setIsAuthenticated(Boolean(data.session && role));
+      setUserRole(role);
+      setAuthReady(true);
     }
+
+    initAuth();
+
+    const { data: authListener } = supabase.auth.onAuthStateChange(
+      (_event, session) => {
+        const role = getRoleFromSession(session);
+        setIsAuthenticated(Boolean(session && role));
+        setUserRole(role);
+      },
+    );
+
+    return () => {
+      active = false;
+      authListener.subscription.unsubscribe();
+    };
   }, []);
 
-  function handleLogin(role) {
-    localStorage.setItem(AUTH_KEY, "true");
-    localStorage.setItem(ROLE_KEY, role);
-    setIsAuthenticated(true);
+  async function handleLogin() {
+    const { data } = await supabase.auth.getSession();
+    const role = getRoleFromSession(data.session);
+    setIsAuthenticated(Boolean(data.session && role));
     setUserRole(role);
   }
 
-  function handleLogout() {
-    localStorage.removeItem(AUTH_KEY);
-    localStorage.removeItem(ROLE_KEY);
+  async function handleLogout() {
+    await supabase.auth.signOut();
     setIsAuthenticated(false);
-    setUserRole("admin");
+    setUserRole(null);
   }
+
+  if (!authReady) return null;
 
   return (
     <ConfigProvider
@@ -84,7 +108,7 @@ function App() {
             path="/*"
             element={
               isAuthenticated ? (
-                <Navbar onLogout={handleLogout} role={userRole} />
+                <Navbar onLogout={handleLogout} role={userRole || "cashier"} />
               ) : (
                 <Navigate to="/login" replace />
               )

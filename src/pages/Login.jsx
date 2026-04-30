@@ -1,37 +1,37 @@
 import { useState } from "react";
 import { Card, Form, Input, Button, message } from "antd";
 import { UserOutlined, LockOutlined } from "@ant-design/icons";
-
-const DEFAULT_USERNAME = "admin";
-const DEFAULT_PASSWORD = "carpet123";
-const DEFAULT_CASHIER_USERNAME = "cashier";
-const DEFAULT_CASHIER_PASSWORD = "cashier123";
+import { supabase } from "../supabaseClient";
 
 export default function Login({ onLogin }) {
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(values) {
     setLoading(true);
-    const adminUsername = import.meta.env.VITE_LOGIN_USERNAME || DEFAULT_USERNAME;
-    const adminPassword = import.meta.env.VITE_LOGIN_PASSWORD || DEFAULT_PASSWORD;
-    const cashierUsername = DEFAULT_CASHIER_USERNAME;
-    const cashierPassword = DEFAULT_CASHIER_PASSWORD;
+    const email = values.username?.trim();
+    const password = values.password;
 
-    if (
-      values.username?.trim() === adminUsername &&
-      values.password === adminPassword
-    ) {
-      onLogin("admin");
-      message.success("تم تسجيل الدخول");
-    } else if (
-      values.username?.trim() === cashierUsername &&
-      values.password === cashierPassword
-    ) {
-      onLogin("cashier");
-      message.success("تم تسجيل دخول الكاشير");
-    } else {
-      message.error("اسم المستخدم أو كلمة المرور غير صحيحة");
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error || !data?.session) {
+      message.error("بيانات تسجيل الدخول غير صحيحة");
+      setLoading(false);
+      return;
     }
+
+    const role = data.user?.user_metadata?.role;
+    if (role !== "admin" && role !== "cashier") {
+      await supabase.auth.signOut();
+      message.error("الحساب لا يملك صلاحية الدخول للنظام");
+      setLoading(false);
+      return;
+    }
+
+    await onLogin();
+    message.success(role === "admin" ? "تم تسجيل الدخول" : "تم تسجيل دخول الكاشير");
     setLoading(false);
   }
 
@@ -55,11 +55,14 @@ export default function Login({ onLogin }) {
 
         <Form layout="vertical" onFinish={handleSubmit}>
           <Form.Item
-            label="اسم المستخدم"
+            label="البريد الإلكتروني"
             name="username"
-            rules={[{ required: true, message: "ادخل اسم المستخدم" }]}
+            rules={[
+              { required: true, message: "ادخل البريد الإلكتروني" },
+              { type: "email", message: "اكتب بريد إلكتروني صحيح" },
+            ]}
           >
-            <Input prefix={<UserOutlined />} placeholder="اسم المستخدم" />
+            <Input prefix={<UserOutlined />} placeholder="example@email.com" />
           </Form.Item>
 
           <Form.Item

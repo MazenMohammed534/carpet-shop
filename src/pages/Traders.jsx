@@ -71,6 +71,28 @@ export default function Traders() {
     setProducts(data || []);
   }
 
+  async function updateProductQuantitySafely(productId, expectedQuantity, nextQuantity) {
+    if (nextQuantity < 0) return { ok: false, reason: "negative" };
+    const { data, error } = await supabase
+      .from("products")
+      .update({ quantity: nextQuantity })
+      .eq("id", productId)
+      .eq("quantity", expectedQuantity)
+      .select("id")
+      .maybeSingle();
+    if (error || !data) return { ok: false, reason: "conflict" };
+    return { ok: true };
+  }
+
+  function escapeHtml(value) {
+    return String(value ?? "")
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+  }
+
   function handleProductSearch(value) {
     setSearchProduct(value);
     const filtered = products
@@ -339,21 +361,23 @@ export default function Traders() {
       });
     }
 
-    // تحديث ديون التاجر
-    if (remaining > 0) {
-      await supabase
-        .from("traders")
-        .update({ total_debt: remaining })
-        .eq("id", traderId);
-    }
-
     // تحديث المخزن
     for (const item of cartItems) {
       const product = products.find((p) => p.id === item.product_id);
-      await supabase
-        .from("products")
-        .update({ quantity: product.quantity - item.quantity })
-        .eq("id", item.product_id);
+      const expectedQty = product?.quantity ?? 0;
+      const nextQty = expectedQty - item.quantity;
+      const stockUpdate = await updateProductQuantitySafely(
+        item.product_id,
+        expectedQty,
+        nextQty,
+      );
+      if (!stockUpdate.ok) {
+        return message.error(
+          stockUpdate.reason === "negative"
+            ? `الكمية لا تكفي لمنتج "${item.product_name}"`
+            : `تم تعديل مخزون "${item.product_name}" من مستخدم آخر، أعد المحاولة`,
+        );
+      }
 
       await supabase.from("inventory_log").insert({
         product_id: item.product_id,
@@ -370,6 +394,7 @@ export default function Traders() {
     setTraderName("");
     setTraderPhone("");
     setPaidAmount(0);
+    await refreshTraderDebt(traderId);
     fetchInvoices();
     fetchProducts();
   }
@@ -386,7 +411,17 @@ export default function Traders() {
       amount: paymentAmount,
     });
 
-    const newPaid = selectedInvoice.paid_amount + paymentAmount;
+    const { data: freshInvoice } = await supabase
+      .from("invoices")
+      .select("paid_amount, remaining_amount")
+      .eq("id", selectedInvoice.id)
+      .maybeSingle();
+    const latestPaid = freshInvoice?.paid_amount || 0;
+    const latestRemaining = freshInvoice?.remaining_amount || 0;
+    if (paymentAmount > latestRemaining) {
+      return message.error("المبلغ أكبر من المتبقي الحالي");
+    }
+    const newPaid = latestPaid + paymentAmount;
     await supabase
       .from("invoices")
       .update({ paid_amount: newPaid })
@@ -395,6 +430,7 @@ export default function Traders() {
     message.success("تم تسجيل الدفعة");
     setPaymentModalOpen(false);
     setPaymentAmount(0);
+    await refreshTraderDebt(selectedInvoice.trader_id);
     fetchInvoices();
   }
 
@@ -480,12 +516,18 @@ export default function Traders() {
       const product = products.find((p) => p.id === productId);
       const currentQty = product?.quantity || 0;
       const updatedQty = currentQty - delta;
-      if (updatedQty < 0) return message.error("التعديل هيخلي المخزون بالسالب");
-
-      await supabase
-        .from("products")
-        .update({ quantity: updatedQty })
-        .eq("id", productId);
+      const stockUpdate = await updateProductQuantitySafely(
+        productId,
+        currentQty,
+        updatedQty,
+      );
+      if (!stockUpdate.ok) {
+        return message.error(
+          stockUpdate.reason === "negative"
+            ? "التعديل هيخلي المخزون بالسالب"
+            : "حصل تعارض على مخزون المنتجات، أعد المحاولة",
+        );
+      }
 
       await supabase.from("inventory_log").insert({
         product_id: productId,
@@ -526,6 +568,7 @@ export default function Traders() {
     message.success("تم تعديل الفاتورة");
     setEditModalOpen(false);
     setEditingInvoice(null);
+    await refreshTraderDebt(traderId);
     fetchInvoices();
     fetchProducts();
   }
@@ -551,11 +594,16 @@ export default function Traders() {
     for (const item of invoice.invoice_items || []) {
       const product = products.find((p) => p.id === item.product_id);
       if (!product) continue;
-
-      await supabase
-        .from("products")
-        .update({ quantity: (product.quantity || 0) + item.quantity })
-        .eq("id", item.product_id);
+      const currentQty = product.quantity || 0;
+      const updatedQty = currentQty + item.quantity;
+      const stockUpdate = await updateProductQuantitySafely(
+        item.product_id,
+        currentQty,
+        updatedQty,
+      );
+      if (!stockUpdate.ok) {
+        return message.error("حصل تعارض أثناء تحديث المخزون، أعد المحاولة");
+      }
 
       await supabase.from("inventory_log").insert({
         product_id: item.product_id,
@@ -581,6 +629,7 @@ export default function Traders() {
   function handlePrint(invoice) {
     const items = invoice.invoice_items || [];
     const payments = invoice.payments || [];
+    const traderName = escapeHtml(invoice.traders?.name || "");
     const printContent = `
       <html><head><meta charset="utf-8">
       <style>
@@ -593,15 +642,15 @@ export default function Traders() {
       </style></head><body>
       <h2>🏪 المعروف للسجاد - فاتورة تاجر</h2>
       <p>فاتورة رقم: ${invoice.invoice_number}</p>
-      <p>التاجر: ${invoice.traders?.name || ""}</p>
+      <p>التاجر: ${traderName}</p>
       <p>التاريخ: ${new Date(invoice.created_at).toLocaleString("ar-EG")}</p>
       <table>
         <tr><th>المنتج</th><th>المقاس</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr>
         ${items
           .map(
             (i) => `<tr>
-          <td>${i.product_name}</td><td>${i.product_size}</td>
-          <td>${i.quantity}</td><td>${i.unit_price} ج</td><td>${i.total_price} ج</td>
+          <td>${escapeHtml(i.product_name)}</td><td>${escapeHtml(i.product_size)}</td>
+          <td>${escapeHtml(i.quantity)}</td><td>${escapeHtml(i.unit_price)} ج</td><td>${escapeHtml(i.total_price)} ج</td>
         </tr>`,
           )
           .join("")}
@@ -619,7 +668,7 @@ export default function Traders() {
             .map(
               (p) => `<tr>
             <td>${new Date(p.payment_date).toLocaleString("ar-EG")}</td>
-            <td>${p.amount} ج</td><td>${p.notes || ""}</td>
+            <td>${escapeHtml(p.amount)} ج</td><td>${escapeHtml(p.notes || "")}</td>
           </tr>`,
             )
             .join("")}
