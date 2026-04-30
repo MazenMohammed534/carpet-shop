@@ -262,20 +262,40 @@ export default function Traders() {
       }
     }
 
-    // جلب أو إنشاء التاجر
+    // جلب أو إنشاء التاجر (نتجنب الربط الغلط لما التليفون يكون فاضي)
     let traderId = null;
-    const { data: existing } = await supabase
-      .from("traders")
-      .select("id")
-      .eq("phone", traderPhone)
-      .single();
+    const normalizedName = traderName.trim();
+    const normalizedPhone = traderPhone.trim();
+    let existing = null;
+
+    if (normalizedPhone) {
+      const { data } = await supabase
+        .from("traders")
+        .select("id")
+        .eq("phone", normalizedPhone)
+        .maybeSingle();
+      existing = data;
+    }
+
+    if (!existing) {
+      const { data } = await supabase
+        .from("traders")
+        .select("id")
+        .eq("name", normalizedName)
+        .maybeSingle();
+      existing = data;
+    }
 
     if (existing) {
       traderId = existing.id;
+      await supabase
+        .from("traders")
+        .update({ name: normalizedName, phone: normalizedPhone || null })
+        .eq("id", traderId);
     } else {
       const { data: newTrader } = await supabase
         .from("traders")
-        .insert({ name: traderName, phone: traderPhone })
+        .insert({ name: normalizedName, phone: normalizedPhone || null })
         .select("id")
         .single();
       traderId = newTrader?.id;
@@ -395,21 +415,38 @@ export default function Traders() {
     }
 
     let traderId = editingInvoice.trader_id;
-    const { data: existing } = await supabase
-      .from("traders")
-      .select("id")
-      .eq("phone", editTraderPhone)
-      .single();
+    const normalizedName = editTraderName.trim();
+    const normalizedPhone = editTraderPhone.trim();
+    let existing = null;
+
+    if (normalizedPhone) {
+      const { data } = await supabase
+        .from("traders")
+        .select("id")
+        .eq("phone", normalizedPhone)
+        .maybeSingle();
+      existing = data;
+    }
+
+    if (!existing) {
+      const { data } = await supabase
+        .from("traders")
+        .select("id")
+        .eq("name", normalizedName)
+        .maybeSingle();
+      existing = data;
+    }
+
     if (existing) {
       traderId = existing.id;
       await supabase
         .from("traders")
-        .update({ name: editTraderName, phone: editTraderPhone })
+        .update({ name: normalizedName, phone: normalizedPhone || null })
         .eq("id", traderId);
     } else {
       const { data: newTrader } = await supabase
         .from("traders")
-        .insert({ name: editTraderName, phone: editTraderPhone })
+        .insert({ name: normalizedName, phone: normalizedPhone || null })
         .select("id")
         .single();
       traderId = newTrader?.id || traderId;

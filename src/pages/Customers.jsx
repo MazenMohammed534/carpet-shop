@@ -260,20 +260,40 @@ export default function Customers() {
       }
     }
 
-    // إنشاء أو جلب الزبون
+    // إنشاء أو جلب الزبون (لا نربط على رقم موبايل فارغ)
     let customerId = null;
-    const { data: existingCustomer } = await supabase
-      .from("customers")
-      .select("id")
-      .eq("phone", customerPhone)
-      .single();
+    const normalizedName = customerName.trim();
+    const normalizedPhone = customerPhone.trim();
+    let existingCustomer = null;
+
+    if (normalizedPhone) {
+      const { data } = await supabase
+        .from("customers")
+        .select("id")
+        .eq("phone", normalizedPhone)
+        .maybeSingle();
+      existingCustomer = data;
+    }
+
+    if (!existingCustomer) {
+      const { data } = await supabase
+        .from("customers")
+        .select("id")
+        .eq("name", normalizedName)
+        .maybeSingle();
+      existingCustomer = data;
+    }
 
     if (existingCustomer) {
       customerId = existingCustomer.id;
+      await supabase
+        .from("customers")
+        .update({ name: normalizedName, phone: normalizedPhone || null })
+        .eq("id", customerId);
     } else {
       const { data: newCustomer } = await supabase
         .from("customers")
-        .insert({ name: customerName, phone: customerPhone })
+        .insert({ name: normalizedName, phone: normalizedPhone || null })
         .select("id")
         .single();
       customerId = newCustomer?.id;
@@ -389,22 +409,38 @@ export default function Customers() {
     }
 
     let customerId = editingInvoice.customer_id;
-    const { data: existingCustomer } = await supabase
-      .from("customers")
-      .select("id")
-      .eq("phone", editCustomerPhone)
-      .single();
+    const normalizedName = editCustomerName.trim();
+    const normalizedPhone = editCustomerPhone.trim();
+    let existingCustomer = null;
+
+    if (normalizedPhone) {
+      const { data } = await supabase
+        .from("customers")
+        .select("id")
+        .eq("phone", normalizedPhone)
+        .maybeSingle();
+      existingCustomer = data;
+    }
+
+    if (!existingCustomer) {
+      const { data } = await supabase
+        .from("customers")
+        .select("id")
+        .eq("name", normalizedName)
+        .maybeSingle();
+      existingCustomer = data;
+    }
 
     if (existingCustomer) {
       customerId = existingCustomer.id;
       await supabase
         .from("customers")
-        .update({ name: editCustomerName, phone: editCustomerPhone })
+        .update({ name: normalizedName, phone: normalizedPhone || null })
         .eq("id", customerId);
     } else {
       const { data: newCustomer } = await supabase
         .from("customers")
-        .insert({ name: editCustomerName, phone: editCustomerPhone })
+        .insert({ name: normalizedName, phone: normalizedPhone || null })
         .select("id")
         .single();
       customerId = newCustomer?.id || customerId;
@@ -491,6 +527,7 @@ export default function Customers() {
 
   function handlePrint(invoice) {
     const items = invoice.invoice_items || [];
+    const invoiceCustomerName = invoice.customers?.name || "زبون";
     const printContent = `
       <html><head><meta charset="utf-8">
       <style>
@@ -504,7 +541,7 @@ export default function Customers() {
       </style></head><body>
       <h2>🏪 المعروف للسجاد</h2>
       <div class="info">فاتورة رقم: ${invoice.invoice_number}</div>
-      <div class="info">الزبون: ${customerName || "زبون"}</div>
+      <div class="info">الزبون: ${invoiceCustomerName}</div>
       <div class="info">التاريخ: ${new Date(invoice.created_at).toLocaleString("ar-EG")}</div>
       <table>
         <tr><th>المنتج</th><th>المقاس</th><th>الكمية</th><th>السعر</th><th>الإجمالي</th></tr>
@@ -854,6 +891,7 @@ export default function Customers() {
       >
         {selectedInvoice && (
           <>
+            <p>👤 الزبون: {selectedInvoice.customers?.name || "-"}</p>
             <p>
               📅 التاريخ:{" "}
               {new Date(selectedInvoice.created_at).toLocaleString("ar-EG")}

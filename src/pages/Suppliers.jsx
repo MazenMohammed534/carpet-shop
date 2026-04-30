@@ -240,20 +240,40 @@ export default function Suppliers() {
     if (!supplierName.trim()) return message.error("ادخل اسم المورد");
     if (cartItems.length === 0) return message.error("أضف منتج واحد على الأقل");
 
-    // جلب أو إنشاء المورد
+    // جلب أو إنشاء المورد (لا نربط على رقم فارغ)
     let supplierId = null;
-    const { data: existing } = await supabase
-      .from("suppliers")
-      .select("id")
-      .eq("phone", supplierPhone)
-      .single();
+    const normalizedName = supplierName.trim();
+    const normalizedPhone = supplierPhone.trim();
+    let existing = null;
+
+    if (normalizedPhone) {
+      const { data } = await supabase
+        .from("suppliers")
+        .select("id")
+        .eq("phone", normalizedPhone)
+        .maybeSingle();
+      existing = data;
+    }
+
+    if (!existing) {
+      const { data } = await supabase
+        .from("suppliers")
+        .select("id")
+        .eq("name", normalizedName)
+        .maybeSingle();
+      existing = data;
+    }
 
     if (existing) {
       supplierId = existing.id;
+      await supabase
+        .from("suppliers")
+        .update({ name: normalizedName, phone: normalizedPhone || null })
+        .eq("id", supplierId);
     } else {
       const { data: newSupplier } = await supabase
         .from("suppliers")
-        .insert({ name: supplierName, phone: supplierPhone })
+        .insert({ name: normalizedName, phone: normalizedPhone || null })
         .select("id")
         .single();
       supplierId = newSupplier?.id;
@@ -360,21 +380,37 @@ export default function Suppliers() {
     if (editCartItems.length === 0) return message.error("أضف منتج واحد على الأقل");
 
     let supplierId = editingInvoice.supplier_id;
-    const { data: existing } = await supabase
-      .from("suppliers")
-      .select("id")
-      .eq("phone", editSupplierPhone)
-      .single();
+    const normalizedName = editSupplierName.trim();
+    const normalizedPhone = editSupplierPhone.trim();
+    let existing = null;
+
+    if (normalizedPhone) {
+      const { data } = await supabase
+        .from("suppliers")
+        .select("id")
+        .eq("phone", normalizedPhone)
+        .maybeSingle();
+      existing = data;
+    }
+    if (!existing) {
+      const { data } = await supabase
+        .from("suppliers")
+        .select("id")
+        .eq("name", normalizedName)
+        .maybeSingle();
+      existing = data;
+    }
+
     if (existing) {
       supplierId = existing.id;
       await supabase
         .from("suppliers")
-        .update({ name: editSupplierName, phone: editSupplierPhone })
+        .update({ name: normalizedName, phone: normalizedPhone || null })
         .eq("id", supplierId);
     } else {
       const { data: newSupplier } = await supabase
         .from("suppliers")
-        .insert({ name: editSupplierName, phone: editSupplierPhone })
+        .insert({ name: normalizedName, phone: normalizedPhone || null })
         .select("id")
         .single();
       supplierId = newSupplier?.id || supplierId;
