@@ -572,28 +572,33 @@ export default function Customers() {
       dataIndex: "invoice_number",
       key: "invoice_number",
       render: (v) => `#${v}`,
+      width: 110,
     },
     {
       title: "الزبون",
       key: "customer_name",
       render: (_, r) => r.customers?.name || "-",
+      width: 180,
     },
     {
       title: "رقم التليفون",
       key: "customer_phone",
       render: (_, r) => r.customers?.phone || "-",
+      width: 150,
     },
     {
       title: "التاريخ",
       dataIndex: "created_at",
       key: "created_at",
       render: (v) => new Date(v).toLocaleString("ar-EG"),
+      width: 210,
     },
     {
       title: "الإجمالي",
       dataIndex: "total_amount",
       key: "total_amount",
       render: (v) => `${v} ج`,
+      width: 120,
     },
     {
       title: "الحالة",
@@ -605,6 +610,7 @@ export default function Customers() {
         ) : (
           <Tag color="red">مرتجعة</Tag>
         ),
+      width: 100,
     },
     {
       title: "إجراءات",
@@ -671,6 +677,7 @@ export default function Customers() {
         rowKey="id"
         loading={loading}
         pagination={{ pageSize: 15 }}
+        scroll={{ x: "max-content" }}
       />
 
       {/* Modal الفاتورة الجديدة */}

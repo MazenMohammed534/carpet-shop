@@ -641,34 +641,40 @@ export default function Traders() {
       dataIndex: "invoice_number",
       key: "invoice_number",
       render: (v) => `#${v}`,
+      width: 110,
     },
     {
       title: "التاجر",
       key: "trader",
       render: (_, r) => r.traders?.name || "-",
+      width: 170,
     },
     {
       title: "رقم التليفون",
       key: "trader_phone",
       render: (_, r) => r.traders?.phone || "-",
+      width: 150,
     },
     {
       title: "التاريخ",
       dataIndex: "created_at",
       key: "date",
       render: (v) => new Date(v).toLocaleString("ar-EG"),
+      width: 210,
     },
     {
       title: "الإجمالي",
       dataIndex: "total_amount",
       key: "total",
       render: (v) => `${v} ج`,
+      width: 120,
     },
     {
       title: "المدفوع",
       dataIndex: "paid_amount",
       key: "paid",
       render: (v) => `${v} ج`,
+      width: 120,
     },
     {
       title: "المتبقي",
@@ -676,6 +682,7 @@ export default function Traders() {
       key: "remaining",
       render: (v) =>
         v > 0 ? <Tag color="red">{v} ج</Tag> : <Tag color="green">مسدد</Tag>,
+      width: 130,
     },
     {
       title: "إجراءات",
@@ -758,6 +765,7 @@ export default function Traders() {
         rowKey="id"
         loading={loading}
         pagination={{ pageSize: 15 }}
+        scroll={{ x: "max-content" }}
       />
 
       {/* Modal فاتورة جديدة */}

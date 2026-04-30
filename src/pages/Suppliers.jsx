@@ -620,29 +620,34 @@ export default function Suppliers() {
       title: "رقم الفاتورة",
       dataIndex: "invoice_number",
       render: (v) => `#${v}`,
+      width: 110,
     },
     {
       title: "المورد",
       key: "supplier",
       render: (_, r) => r.suppliers?.name || "-",
+      width: 170,
     },
     {
       title: "رقم التليفون",
       key: "supplier_phone",
       render: (_, r) => r.suppliers?.phone || "-",
+      width: 150,
     },
     {
       title: "التاريخ",
       dataIndex: "created_at",
       render: (v) => new Date(v).toLocaleString("ar-EG"),
+      width: 210,
     },
-    { title: "الإجمالي", dataIndex: "total_amount", render: (v) => `${v} ج` },
-    { title: "المدفوع", dataIndex: "paid_amount", render: (v) => `${v} ج` },
+    { title: "الإجمالي", dataIndex: "total_amount", render: (v) => `${v} ج`, width: 120 },
+    { title: "المدفوع", dataIndex: "paid_amount", render: (v) => `${v} ج`, width: 120 },
     {
       title: "المتبقي علينا",
       dataIndex: "remaining_amount",
       render: (v) =>
         v > 0 ? <Tag color="red">{v} ج</Tag> : <Tag color="green">مسدد</Tag>,
+      width: 140,
     },
     {
       title: "إجراءات",
@@ -725,6 +730,7 @@ export default function Suppliers() {
         rowKey="id"
         loading={loading}
         pagination={{ pageSize: 15 }}
+        scroll={{ x: "max-content" }}
       />
 
       {/* Modal فاتورة جديدة */}
